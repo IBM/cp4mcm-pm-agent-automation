@@ -1,0 +1,36 @@
+---
+- name: Copy the directory to remote machine 
+  hosts: all
+  vars_files:
+    - vars/commonvars.yml
+    - vars/icamvars.yml
+ 
+  tasks:
+ 
+  - name: Set variable dest_image to "{{ default_image }}"
+    set_fact:
+      dest_image: "{{default_image}}"
+
+ # - name: Delete the dir "{{ dest_image }}"
+ #   file:
+ #     path: "{{ dest_image }}"
+ #     state: absent
+
+  - name: Make remote dir "{{ dest_image }}"
+    file:
+      path: "{{ dest_image }}"
+      state: directory
+      mode: 0777
+      recurse: yes
+    ignore_errors: yes
+
+# ------------------- Copy install image to end point system ----------------------------------
+
+  - name: Copy the dir and all the files"
+    copy:
+      src: "{{ downstream_dir }}"
+      dest: "{{ dest_image }}"
+      mode: 0777
+      force: yes
+
+

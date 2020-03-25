@@ -1,0 +1,47 @@
+---
+- name: Copy and untar configured agent image
+  hosts: all
+  vars_files:
+    - vars/commonvars.yml
+    - vars/icamvars.yml
+ 
+  tasks:
+ 
+  - name: Set variable dest_image to "{{ default_image }}"
+    set_fact:
+      dest_image: "{{default_image}}"
+
+  - name: Delete the dir "{{ dest_image }}"
+    file:
+      path: "{{ dest_image }}"
+      state: absent
+
+  - name: Make remote dir "{{ dest_image }}"
+    file:
+      path: "{{ dest_image }}"
+      state: directory
+      mode: 0777
+      recurse: yes
+    ignore_errors: yes
+
+# ------------------- Copy install image to end point system ----------------------------------
+
+  - set_fact:
+      imagefile: "{{ install_image | basename }}"
+
+  - name: Copy install image from "{{ install_image }}" to end point "{{ dest_image }}"
+    copy:
+      src: "{{ install_image }}"
+      dest: "{{ dest_image }}/{{imagefile}}"
+      mode: 0777
+      force: yes
+
+  - name: "Extract directory: {{untar_file}}"
+    unarchive:
+      src: "{{dest_image}}/{{imagefile}}"
+      dest: "{{dest_image}}/"
+      remote_src: yes
+    when:
+      (untar_file|lower) == "true"
+
+

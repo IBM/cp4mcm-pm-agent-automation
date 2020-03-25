@@ -1,0 +1,27 @@
+---
+- name: Run secure.sh script
+  hosts: all
+  vars_files:
+    - vars/commonvars.yml
+    - vars/icamvars.yml
+
+  tasks:
+
+  - set_fact:
+      script_type: local
+    when: script_type is not  defined
+
+  - set_fact:
+      script_path: "{{install_dir}}/bin/secure.sh"
+    when: script_path is not  defined
+
+
+- import_playbook: filemanager.yml
+  vars:
+    src_type: "{{script_type}}"
+    src_image: "{{script_path}}"
+    args_script: "-g {{group_name}}"
+    untar: no
+    run: yes
+
+

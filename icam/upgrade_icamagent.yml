@@ -1,0 +1,16 @@
+---
+- name: Install icam agent
+  hosts: all
+  vars_files:
+    - vars/commonvars.yml
+    - vars/icamvars.yml
+
+ 
+  tasks:
+
+  - name: Set variable inst_type to upgrade
+    set_fact:
+      inst_type: upgrade
+
+
+- import_playbook: install_icamagent.yml

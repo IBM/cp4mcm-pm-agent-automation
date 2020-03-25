@@ -1,0 +1,30 @@
+- name: itm2icam
+  hosts: all
+  gather_facts: no
+
+  tasks: 
+    
+    - fail: msg=" 'configpack_dir', the directory path of ibm-cloud-apm-v6-configpack.tar is required"
+      when: configpack_dir is not defined
+
+    - fail: msg="'agent_dir', the agent installed path is required for applying configpack"
+      when: agent_dir is not defined
+    
+    - set_fact:
+        connection_mode: icam
+      when: connection_mode is not defined
+
+    - name: Creates temp directory
+      tempfile:
+        state: directory
+        suffix: configpack
+      register: unpack_dir
+
+    - name: Extract config pack
+      unarchive:
+        src: "{{ configpack_dir }}/ibm-cloud-apm-v6-configpack.tar"
+        dest: "{{ unpack_dir.path }}"
+        remote_src: yes
+        
+    - name: Apply config pack to dual
+      command:  sh {{ unpack_dir.path }}/agent2server_itm.sh -i {{ agent_dir }} -c {{ connection_mode }}

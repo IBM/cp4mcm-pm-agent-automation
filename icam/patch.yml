@@ -1,0 +1,18 @@
+---
+ 
+- import_playbook: filemanager.yml
+  vars:
+    untar_file: yes
+
+# -------------  ------------------------------------
+
+- name: Install hotfix/patch on icam agent
+  hosts: all
+  vars_files:
+    - vars/commonvars.yml
+    - vars/icamvars.yml
+
+  tasks:
+  - name: silent install of agent-- "cd {{default_image}}/8.1.4* ;  ./apmpatch.sh -noninteractive {{install_dir}}  "
+    shell: "cd {{default_image}}/8.1.4* ;  ./apmpatch.sh -noninteractive {{install_dir}}"
+

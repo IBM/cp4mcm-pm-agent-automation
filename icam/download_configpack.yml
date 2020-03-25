@@ -1,0 +1,78 @@
+- name: Auto download config pack
+  hosts: all
+  gather_facts: no
+  tasks: 
+    
+    - fail: msg="'account_id', the tenant account is required for downloading configpack"
+      when: account_id is not defined
+    
+    - fail: msg="'configpack_type', the configpack type [ itmv6, apmv8, icamagent, icamdc ] is required for downloading configpack"
+      when: configpack_type != 'itmv6' and configpack_type != 'apmv8' and configpack_type != 'icamagent'  and configpack_type != 'icamdc'
+    
+    - fail: msg="'target_dir', the local target path is required for downloading configpack"
+      when: target_dir is not defined
+    
+    - set_fact:
+        icam_namespace: kube-system
+      when: icam_namespace is not defined
+    
+    - set_fact:
+        configpack_name: ibm-cloud-apm-v6-configpack
+        configpack_mode: cnapmv6
+        configpack_file: ibm-cloud-apm-v6-configpack.tar
+      when: configpack_type == 'itmv6'
+    
+    - set_fact:
+        configpack_name: ibm-cloud-apm-v8-configpack
+        configpack_mode: cnapmv8
+        configpack_file: ibm-cloud-apm-v8-configpack.tar
+      when: configpack_type == 'apmv8'
+    
+    - set_fact:
+        configpack_name: ibm-cloud-icam-agents-configpack
+        configpack_mode: cnapmagents
+        configpack_file: ibm-cloud-icam-agents-configpack.tar
+      when: configpack_type == 'icamagent'
+    
+    - set_fact:
+        configpack_name: ibm-cloud-apm-dc-configpack
+        configpack_mode: cnapmdc
+        configpack_file: ibm-cloud-apm-dc-configpack.tar
+      when: configpack_type == 'icamdc'
+
+    - name: Install openshift module
+      command: pip install --upgrade --user openshift
+      delegate_to: localhost
+
+    - name: Get agentbootstrap service objects
+      k8s_info:
+        api_version: v1
+        kind: Service
+        label_selectors:
+          - app = agentbootstrap
+        namespace: kube-system
+      register: agentbootstrap_service
+      delegate_to: localhost
+
+    - name: Get access token of {{ configpack_name }}
+      uri:
+        url: http://{{ agentbootstrap_service.resources[0].metadata.name }}.{{ icam_namespace }}:6001/agent_bootstrap/0.2/api/downloadArtifact/{{ account_id }}/{{ configpack_mode }}/{{ configpack_name }}
+        return_content: yes
+      register: configpack_url
+      delegate_to: localhost
+
+    - debug:
+        msg: "{{ configpack_url.content }}"
+
+    - name: Create target directory if it does not exist
+      file:
+        path: "{{target_dir}}"
+        state: directory
+
+    - name: Download {{ configpack_file }}
+      get_url:
+        url: "{{ configpack_url.content }}"
+        dest: "{{target_dir}}/{{ configpack_file }}"
+        validate_certs: false
+        timeout: 90
+

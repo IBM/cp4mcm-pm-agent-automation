@@ -1,0 +1,26 @@
+- name: patch
+  hosts: all
+  gather_facts: false
+
+  tasks:
+
+    - fail: msg="'patchfile_path', the full path of APM Core Framework patch V8.1.4 IF0007 or above is required"
+      when: patchfile_path is not defined
+
+    - fail: msg="'agent_dir', the agent installed path is required for applying APM Core Framework patch"
+      when: agent_dir is not defined
+
+    - name: Creates temp directory 
+      tempfile:
+        state: directory
+        suffix: patchfile
+      register: unpack_dir
+
+    - name: Extract APM Core Framework patch
+      unarchive:
+        src: "{{ patchfile_path }}"
+        dest: "{{ unpack_dir.path }}"
+        remote_src: yes
+
+    - name: silent install of APM Core Framework patch 
+      shell: "cd {{ unpack_dir.path }}/8.1.4* ; ./apmpatch.sh -noninteractive {{ agent_dir }}"

@@ -1,0 +1,34 @@
+- name: icam2apm
+  hosts: all
+  gather_facts: false
+
+  tasks: 
+    
+    - fail: msg=" 'configpack_dir', the directory path of ibm-cloud-apm-v8-configpack.tar is required"
+      when: configpack_dir is not defined
+
+    - fail: msg="'agent_dir', the agent installed path is required for reconnecting agent to APM server"
+      when: agent_dir is not defined
+
+    - fail: msg="'cloud_apm_server_address', the Cloud APM server address is required for reconnecting agent to APM server"
+      when: cloud_apm_server_address is not defined
+
+    - fail: msg="'cloud_apm_server_protocol', the Cloud APM server protocol is required for reconnecting agent to APM server"
+      when: cloud_apm_server_protocol is not defined
+
+    - name: Creates temp directory
+      tempfile:
+        state: directory
+        suffix: configpack
+      register: unpack_dir
+
+    - name: Extract agent configuration pack
+      unarchive:
+        src: "{{ configpack_dir }}/ibm-cloud-apm-v8-configpack.tar"
+        dest: "{{ unpack_dir.path }}"
+        remote_src: yes
+
+    - name: Reconnect v8 agent to APM server
+      command:  sh post_config.sh -s {{cloud_apm_server_address}} -p {{cloud_apm_server_protocol}} -i {{ agent_dir }} -r 
+      args:
+        chdir: "{{ unpack_dir.path }}"

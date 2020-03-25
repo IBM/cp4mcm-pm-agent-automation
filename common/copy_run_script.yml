@@ -1,0 +1,28 @@
+---
+- name: Copy and run a script
+  hosts: all
+  vars_files:
+    - vars/commonvars.yml
+    - vars/icamvars.yml
+
+  tasks:
+
+# tasks for copy and run remote file
+    - set_fact:
+        scriptfile: "{{ script_path | basename }}"
+
+    - set_fact:
+        args: ""
+      when:
+        - args is not defined
+
+    - name: Copy "{{script_path}}" to endpoint system on "{{ tmp_dir }}"
+      copy:
+        src: "{{script_path}}"
+        dest: "{{ tmp_dir }}"
+        mode: 0777
+        force: yes
+
+    - name: "Running the script {{tmp_dir}}/{{scriptfile}} {{args}}" 
+      shell: "{{tmp_dir}}/{{scriptfile}} {{args}}"
+

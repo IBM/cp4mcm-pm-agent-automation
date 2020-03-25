@@ -1,0 +1,66 @@
+---
+# common 
+
+  hub_dir: "{{ playbook_dir }}"
+  tmp_dir: /tmp
+  def_dir: /opt/ibm/apm/agent
+  install_dir: "{{ agent_home | default(def_dir) }}"
+  default_dir: /tmp
+  default_image: "{{default_dir}}/icam"
+  dest_image: "{{ dest_dir | default (default_image)}}"
+
+  script_dir: "{{ playbook_dir }}/roles/common/scripts"
+  config_dir:  "{{ playbook_dir }}/silentfiles/"
+#  l3nfsdir: /l3nfs
+#  l3snapdir: /l3snap
+#  #mount_l3nfs_dir: l3storage.rtp.raleigh.ibm.com:/l3storage/install
+  default_image_type: local
+  inst_image_type: "{{image_type  | default(default_image_type) }}"
+
+  silent_type: "{{silent_file_type  | default(default_image_type) }}"
+
+  config_type: "{{config_file_type  | default(default_image_type) }}"
+
+  value_install: Install
+  inst_type: "{{ install_type | default(value_install) }}"
+
+  default_silent_file: "{{config_dir}}/silent_install_icamagent_os.txt"
+  inst_silent_file: "{{ silent_file | default(default_silent_file) }}"
+
+  product_code: os
+  default_config_file: "{{config_dir}}/silent_config_{{  product_code }}.txt"
+  inst_config_file: "{{ config_file | default(default_config_file) }}"
+
+  install_input_file_src: "{{ inst_silent_file }}"
+  config_input_file_src: "{{  inst_config_file }}"
+
+  install_input_file_dest: "{{ default_image }}/{{ silent_file | basename }}"
+  config_input_file_dest: "{{ default_image }}/{{ config_file | basename }}"
+
+  snapshot: ITM_install_snapshot
+  default_fyre: false
+  fyre_sys: "{{ fyre | default(default_fyre) }}"
+  snapshot_dir: "{{tmp_dir if fyre_sys == 'true' else l3snapdir }}"
+
+  take_snapshot: "take_snapshot.yml"
+  restore_snapshot: "restore_snapshot.yml"
+  apply_patch:  "ewas_ihs_patch.yml"
+  capture_info: "capture_info.yml"
+  copy_run: "copy_run_script.yml"
+  stop_itm:  "stopITM.yml"
+  kill_itm:  "killITM.yml"
+  start_itm:  "startITM.yml"
+  sign_jars: "sign_jars.yml"
+  uninstall:  "main.yml"
+  mount1:  "mount.yml"
+
+# internal variables
+  
+  copy_install_media: False
+  use_l3nfs_mount: False 
+  use_local_media: False
+
+# file for uninstall-all
+  itmremovescript: "itmremoveall.sh"
+
+

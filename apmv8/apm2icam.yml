@@ -1,0 +1,29 @@
+- name: apm2icam
+  hosts: all
+  gather_facts: false
+
+  tasks:
+
+    - fail: msg=" 'configpack_dir', the directory path of ibm-cloud-apm-v8-configpack.tar is required"
+      when: configpack_dir is not defined
+
+    - fail: msg="'agent_dir', the agent installed path is required for applying agent configuration pack and connecting agent to ICAM server"
+      when: agent_dir is not defined
+
+    - name: Creates temp directory
+      tempfile:
+        state: directory
+        suffix: configpack
+      register: unpack_dir
+
+    - name: Extract agent configuration pack
+      unarchive:
+        src: "{{ configpack_dir }}/ibm-cloud-apm-v8-configpack.tar"
+        dest: "{{ unpack_dir.path }}"
+        remote_src: yes
+
+    - name: Connect agent to ICAM server
+      command:  sh post_config.sh -e env.properties -i {{ agent_dir }} -y
+      args:
+        chdir: "{{ unpack_dir.path }}"
+

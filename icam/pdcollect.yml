@@ -1,0 +1,61 @@
+---
+- name: Generate and copy  pdcollect 
+  hosts: all
+  vars_files:
+    - vars/commonvars.yml
+    - vars/icamvars.yml
+ 
+  tasks:
+ 
+# tasks file for uninstall-all
+
+  - name:  Test if "{{ install_dir }}" directory exists
+    stat:
+      path:  "{{ install_dir }}"
+    register: itmdir
+
+  - name: ending the play if ITM dir does not exist
+    meta: end_play
+    when:
+      - itmdir.stat.exists == false
+
+  - block:
+
+    - name:  echo hostname 
+      shell: "echo `hostname -f` "
+      register: hostname
+
+    - name: set destination pdcollect file name
+      set_fact:
+        pdfile: pdcollect-{{hostname.stdout}}-{{ lookup('pipe', 'date +%Y-%m-%d-%H%M') }}.tar.Z
+
+
+    - name: Generate pdcollect filename
+      shell: "DESTNAME=pdcollect-`hostname` ; DESTNAME=${DESTNAME%%\\.*} ; echo $DESTNAME"
+      register: pdcollectfile
+
+    - name: "Generate pdcollect from {{install_dir}}"
+      shell: "echo exit | {{install_dir}}/bin/pdcollect"
+      ignore_errors: yes
+    
+    - name:  Test if "{{ pdcollect_dir }}" directory exists
+      stat:
+        path:  "{{ pdcollect_dir }}"
+      register: pddir
+
+
+    - name: ansible create directory example
+      file:
+        path: "{{pdcollect_dir}}"
+        state: directory
+      when: pddir.stat.exists == false
+
+    - name: Copy the pdcollect "/tmp/{{pdcollectfile.stdout}}.tar.Z" and transfer it to ansible tower host "{{pdcollect_dir}}/{{pdfile}}"
+      copy:
+        src: "/tmp/{{pdcollectfile.stdout}}.tar.Z"
+        dest: "{{pdcollect_dir}}/{{pdfile}}"
+        mode: 0777
+        force: yes
+        remote_src: yes
+
+

@@ -1,0 +1,51 @@
+---
+- name: mount nfs server on a remote agent box 
+  hosts: all
+  vars_files:
+    - vars/commonvars.yml
+    - vars/icamvars.yml
+ 
+  tasks:
+
+  - name: set force option
+    set_fact:
+      force: false
+    when: force is not defined
+
+
+  - name: set_fact for local_dir
+    set_fact:
+      local_dir: "/tmp/mounticam"
+    when: local_dir is not defined
+
+  - name:  Test if "{{ local_dir }}" directory exists
+    stat:
+      path:  "{{ local_dir }}"
+    register: localdir
+
+
+  - name: ansible create directory example
+    file:
+      path: "{{local_dir}}"
+      state: directory
+    when: localdir.stat.exists == false
+
+  - name: "check mount point {{ local_dir }}"
+    command: mountpoint {{ local_dir }}
+    register: mount_stat
+    failed_when: False
+    changed_when: False
+
+  - name: "debug"
+    when: mount_stat.stdout == "{{ local_dir }} is a mountpoint"
+    debug:
+      msg: "{{ local_dir }} is a mountpoint"
+
+  - name: unmount it
+    shell: "umount {{local_dir}}"
+    when:  mount_stat.stdout == "{{ local_dir }} is a mountpoint" and (force|lower) == "true"
+
+  - name: "mount the nfs server"
+    shell: "mount {{nfs_server_path}} {{local_dir}}"
+    when:  mount_stat.stdout == "{{ local_dir }} is not a mountpoint" or (force|lower) == "true"
+
