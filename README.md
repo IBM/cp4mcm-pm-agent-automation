@@ -3,3 +3,4 @@ Use Red Hat Ansible Tower to integrate your IBM Tivoli Monitoring V6, and APM V8
 IBM provides playbooks in a GitHub repository for common tasks that are involved in agent integration and deployment. These playbooks can be used in Ansible Tower templates. 
 
 For More info, refer to https://www.ibm.com/support/knowledgecenter/SSFC4F_1.3.0/icam/ansible_intro.html
+# cp4mcm-pm-agents-automation
