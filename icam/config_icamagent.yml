@@ -23,9 +23,9 @@
 
   tasks:
 
-  - name: Silent config of "{{agent_type}}" agent
-    shell: "{{install_dir}}/bin/{{agent_type}}-agent.sh config {{instance}} {{config_input_file_dest}}"
+  - name: Silent config of "{{agent_name}}" agent
+    shell: "{{install_dir}}/bin/{{agent_name}}-agent.sh config {{instance}} {{config_input_file_dest}}"
     ignore_errors: true
 
-  - name: Start the "{{agent_type}}" agent
-    shell: "{{install_dir}}/bin/{{agent_type}}-agent.sh start {{instance}}"
+  - name: Start the "{{agent_name}}" agent
+    shell: "{{install_dir}}/bin/{{agent_name}}-agent.sh start {{instance}}"

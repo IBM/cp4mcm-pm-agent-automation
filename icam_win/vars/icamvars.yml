@@ -1,23 +1,25 @@
 ---
+#  default_dir: /tmp
+#  default_image: "{{default_dir}}/icam"
 
-  default_pdcollect: "{{default_dir}}/pdcollect"
+  default_pdcollect: "{{default_dir}}\\pdcollect"
   pdcollect_dir: "{{ log_dir | default(default_pdcollect)}}"
 
-  default_patch: "{{default_dir}}/icamagent/patches"
+  default_patch: "{{default_dir}}\\icamagent\\patches"
   patch_dir: "{{ patch | default(default_patch)}}"
 
-  default_downstream: "{{default_dir}}/downstream/"
+  default_downstream: "{{default_dir}}\\downstream"
   downstream_dir: "{{ dir | default(default_downstream)}}"  
  
   default_versionsion: 2020.2.0
   versionsion: "{{version | default(default_versionsion)}}"
-  platform: xlinux
+  platform: win
 
-  default_image_url: "http://rtpgsa.ibm.com/gsa/rtpgsa/home/p/a/patelke/web/public/icam/appMgtAgents_{{platform}}_{{version}}.tar.gz"
+  default_image_url: "http://rtpgsa.ibm.com/gsa/rtpgsa/home/p/a/patelke/web/public/icam/appMgtAgents_{{platform}}_{{version}}.zip"
   image_url:  "{{ image_dir | default(default_image_url)}}"
 
-#  install_image: "{{default_dir}}/icamagent/configured/2019.3.0.1/appMgtAgents_{{platform}}_2019.3.0.1.tar.gz"
-  default_agent_image:  "{{default_dir}}/icamagent/configured/{{versionsion}}/appMgtAgents_{{platform}}_{{versionsion}}.tar.gz"
+#  install_image: "{{default_dir}}\icamagent\configured\2019.3.0.1\appMgtAgents_{{platform}}_2019.3.0.1.zip"
+  default_agent_image:  "{{default_dir}}\\icamagent\\configured\\{{versionsion}}\\appMgtAgents_{{platform}}_{{versionsion}}.zip"
   install_image: "{{ agent_image | default(default_agent_image) }}"
   
   default_untar: false

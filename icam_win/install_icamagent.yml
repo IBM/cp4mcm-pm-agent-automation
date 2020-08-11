@@ -1,4 +1,5 @@
 ---
+# do not uninstall agent before install
 #- name: Install icam agent
 #  hosts: all
 #  vars_files:
@@ -26,17 +27,18 @@
     src_image: "{{install_input_file_src}}"
     untar: no
 
-
 - name: Install icam agent
   hosts: all
   vars_files:
     - vars/commonvars.yml
     - vars/icamvars.yml
+
  
   tasks:
 
 # ------------- Copy silent install and config files ------------------------------------
 
+#def_file is not used
 #  - name: set def_file to true since silent_file is specified by the user
 #    set_fact: 
 #      def_file: true
@@ -49,45 +51,51 @@
 #    when: inst_silent_file is not defined
 
   - set_fact:
-      install_input_file_dest: "{{ tmp_dir }}/APPMGT_silent_install.txt"
+      install_input_file_dest: "{{ tmp_dir }}\\APPMGT_silent_install.txt"
 
   - fail: msg="agent_name must be defined"
     when: agent_name is undefined
 
   - name: remove temporary silent file if it exists
-    file: 
+    win_file: 
       path: "{{ install_input_file_dest }}"
       state: absent
 
   - name: create temporary silent file
-    file: 
+    win_file: 
       path: "{{ install_input_file_dest }}"
       state: touch
 
   - name: add License_Agreement to silent file
-    lineinfile:
+    win_lineinfile:
       path: "{{ install_input_file_dest }}"
       line: "License_Agreement=\"I agree to use the software only in accordance with the installed license.\""
   
   - name: add agent product name into silent file
-    lineinfile:
+    win_lineinfile:
       path: "{{ install_input_file_dest }}"
       line: "INSTALL_AGENT={{ item }}"
+    args:
+      stdin: y 
     loop: "{{agent_name.split(',')}}"
 
   - name: add AGENT_HOME into silent file
-    lineinfile:
+    win_lineinfile:
       path: "{{ install_input_file_dest }}"
       line: "AGENT_HOME={{ install_dir }}"
 
-#  - name: "Replace AGENT_HOME={{agent_home}} in the silent file  {{ install_input_file_dest }}"
-#    lineinfile:
+
+#  - name: "Replace AGENT_HOME={{agent_home}} in the silent file  {{ install_input_file_dest }} on Windows"
+#    win_lineinfile:
 #      path:  "{{ install_input_file_dest }}"
 #      regexp: '^AGENT_HOME='
 #      line: "AGENT_HOME={{agent_home}}"
 #    when:
 #      - agent_home is defined
 
-  - name: silent install of agent-- "cd {{target_dir}}/APPMGT*; ./installAPMAgents.sh  -p {{ install_input_file_dest }} "
-    shell: "cd {{target_dir}}/APPMGT*; ./installAPMAgents.sh  -p {{ install_input_file_dest }} "
 
+  - name: silent install of agent on Windows -- "{{default_image}}\\APPMGT_WIN_Agent_Install_{{versionsion}}\\installAPMAgents.bat -p {{ install_input_file_dest }} "
+    win_command: "APPMGT_WIN_Agent_Install_{{versionsion}}\\installAPMAgents.bat -p {{ install_input_file_dest }} "
+    args:
+      chdir: "{{default_image}}"
+   

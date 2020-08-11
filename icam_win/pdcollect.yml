@@ -1,0 +1,70 @@
+---
+- name: Generate and copy pdcollect on Windows
+  hosts: all
+  vars_files:
+    - vars/commonvars.yml
+    - vars/icamvars.yml
+ 
+  tasks:
+ 
+# tasks file for pdcollect
+
+  - name:  Test if "{{ install_dir }}" directory exists on Windows
+    win_stat:
+      path:  "{{ install_dir }}"
+    register: itmdir
+
+#  - name: ending the play if ITM dir does not exist
+#    meta: end_play
+#    when:
+#      - itmdir.stat.exists == false
+#
+#  - block:
+
+#    - name:  echo hostname 
+#      win_command: hostname
+#      register: hostname
+
+#    - name: set destination pdcollect file name
+#      set_fact:
+#        pdfile: pdcollect-{{hostname.stdout}}-{{ lookup('pipe', 'date +%Y-%m-%d-%H%M') }}.jar
+
+  - name: "Generate pdcollect from {{install_dir}}"
+    win_command: "{{install_dir}}\\bin\\pdcollect.cmd"
+    args:
+      stdin: EXIT
+    ignore_errors: yes
+    when: itmdir.stat.exists == true
+
+  - name: Generate pdcollect files' list and get the latest one later
+    win_command: "cmd.exe /c dir %TEMP%\\pdcollect-*.jar /B /O:-D"
+    register: pdcollectfile
+    when: itmdir.stat.exists == true
+    
+  - name: set pdcollect file full path
+    set_fact:
+      pdfilefullpath: "{{ ansible_facts['env']['TEMP'] }}\\{{pdcollectfile.stdout_lines[0]}}"
+
+  - name:  Test if "{{ pdcollect_dir }}" directory exists
+    win_stat:
+      path:  "{{ pdcollect_dir }}"
+    register: pddir
+
+  - name: ansible create directory example
+    file:
+      path: "{{pdcollect_dir}}"
+      state: directory
+    when: pddir.stat.exists == false and itmdir.stat.exists == true
+
+  - name: Copy the pdcollect from "{{pdfilefullpath}}" to "{{pdcollect_dir}}\\"
+    win_copy:
+      src: "{{ pdfilefullpath }}"
+      dest: "{{pdcollect_dir}}\\"
+      force: yes
+      remote_src: yes
+    when: itmdir.stat.exists == true
+
+  - name: remove pdcollect file "{{ pdfilefullpath }}"
+    win_file:
+      path: "{{ pdfilefullpath }}"
+      state: absent

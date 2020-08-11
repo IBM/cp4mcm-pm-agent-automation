@@ -1,0 +1,142 @@
+---
+- name: OS agent logging functions
+  hosts: all
+  vars_files:
+    - vars/commonvars.yml
+    - vars/icamvars.yml
+ 
+  tasks:
+ 
+# tasks file for os_logging
+
+  - fail: msg="'filelist', the list of files' name seperated by comma or 'all' is required"
+    when: filelist is not defined
+
+  - name:  Test if "{{ install_dir }}" directory exists
+    stat:
+      path:  "{{ install_dir }}"
+    register: agentdir
+
+  - name: ending the play if ITM dir does not exist
+    meta: end_play
+    when:
+      - agentdir.stat.exists == false
+
+  - name: set Linux OS agent product code
+    set_fact:
+      ospc: lz
+    when: 
+      - ansible_facts['os_family'] != 'AIX' and ansible_facts['os_family'] != 'Solaris'
+
+  - name: set Unix OS agent product code
+    set_fact:
+      ospc: ux
+    when: 
+      - ansible_facts['os_family'] == 'AIX' or ansible_facts['os_family'] == 'Solaris'
+
+# ------------------- get sample conf files from samples/logfile-monitoring to working_dir -------------------
+  - name: get sample configuration file
+    block:
+      - fail: msg="'working_dir', the folder to store the sample configuration files is required"
+        when: working_dir is not defined
+
+      - name: get all sample configuration files from samples/logfile-monitoring
+        copy:
+          src: "{{ install_dir }}/samples/logfile-monitoring/"
+          dest: "{{working_dir}}"
+          force: yes
+          remote_src: yes
+        when: (filelist | lower) == "all"
+
+      - name: get specific sample configuration files from samples/logfile-monitoring
+        copy:
+          src: "{{ install_dir }}/samples/logfile-monitoring/{{item}}"
+          dest: "{{working_dir}}"
+          force: yes
+          remote_src: yes
+        loop: "{{filelist.split(',')}}"
+        when: (filelist | lower) != "all"
+    when: (logging_type | lower) == "getsampleconfig"
+
+# ------------------- get conf files from localconfig/{{ ospc }}/log_discovery to working_dir ------------------- 
+  - name: get current configuration files
+    block:
+      - fail: msg="'working_dir', the folder to store the configuration files is required"
+        when: working_dir is not defined
+      
+      - name: get all logging configuration files from localconfig/{{ ospc }}/log_discovery
+        copy:
+          src: "{{ install_dir }}/localconfig/{{ ospc }}/log_discovery/"
+          dest: "{{working_dir}}"
+          force: yes
+          remote_src: yes
+        when: (filelist | lower) == "all"
+      
+      - name: get specific logging configuration files from localconfig/{{ ospc }}/log_discovery
+        copy:
+          src: "{{ install_dir }}/localconfig/{{ ospc }}/log_discovery/{{item}}"
+          dest: "{{working_dir}}"
+          force: yes
+          remote_src: yes
+        loop: "{{filelist.split(',')}}"
+        when: (filelist | lower) != "all"
+    when: (logging_type | lower) == "getconfig"
+
+# ------------------- distribute conf files from working_dir to localconfig/{{ ospc }}/log_discovery ------------------- 
+  - name: distribute .fmt and .conf configuration files
+    block:
+      - fail: msg="'working_dir', the folder of the customized configuration files is required"
+        when: working_dir is not defined
+
+      - name: distribute all .fmt and .conf configuration files
+        block:
+          - name: find all .fmt and .conf configuration files
+            find:
+              paths: "{{ working_dir }}"
+              patterns: [ '*.fmt', '*.conf' ]
+            register: filestodis
+          
+          - name: copy all .fmt and .conf configuration files
+            copy:
+              src: "{{ item.path }}"
+              dest: "{{ install_dir }}/localconfig/{{ ospc }}/log_discovery/"
+              force: yes
+              remote_src: yes
+            loop: "{{ filestodis.files }}"
+        when: (filelist | lower) == "all"
+      
+      - name: distribute specify .fmt and .conf configuration files
+        copy:
+          src: "{{ working_dir }}/{{item}}"
+          dest: "{{ install_dir }}/localconfig/{{ ospc }}/log_discovery/"
+          force: yes
+          remote_src: yes
+        loop: "{{filelist.split(',')}}"
+        when: (filelist | lower) != "all"
+    when: (logging_type | lower) == "distribute"
+
+# ------------------- undistribute conf files from localconfig/{{ ospc }}/log_discovery ------------------- 
+  - name: undistribute .fmt and .conf configuration files
+    block:
+      - name: undistribute all .fmt and .conf configuration files
+        block:
+          - name: find all .fmt and .conf configuration files
+            find:
+              paths: "{{ install_dir }}/localconfig/{{ ospc }}/log_discovery/"
+              patterns: [ '*.fmt', '*.conf' ]
+            register: filestoundis
+          
+          - name: delete all .fmt and .conf configuration files
+            file:
+              path: "{{ item.path }}"
+              state: absent
+            loop: "{{ filestoundis.files }}"
+        when: (filelist | lower) == "all"
+      
+      - name: undistribute specific .fmt and .conf configuration files
+        file:
+          path: "{{ install_dir }}/localconfig/{{ ospc }}/log_discovery/{{item}}"
+          state: absent
+        loop: "{{filelist.split(',')}}"
+        when: (filelist | lower) != "all"
+    when: (logging_type | lower) == "undistribute"

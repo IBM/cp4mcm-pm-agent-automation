@@ -1,0 +1,35 @@
+---
+#- name: Configure icam agent on Windows
+#  hosts: all
+#  vars_files:
+#    - vars/commonvars.yml
+#    - vars/icamvars.yml
+
+#  tasks:
+
+# ------------- Copy config files ------------------------------------
+
+- import_playbook: filemanager.yml
+  vars:
+    src_type: "{{config_type}}"
+    src_image: "{{config_input_file_src}}"
+    untar: no
+
+- name: Configure icam agent on Windows
+  hosts: all
+  vars_files:
+    - vars/commonvars.yml
+    - vars/icamvars.yml
+
+  tasks:
+
+  - name: Silent config "{{install_dir}}\\bin\\{{agent_name}}-agent.bat config {{instance}} {{config_input_file_dest}}"
+    win_command: "{{install_dir}}\\bin\\{{agent_name}}-agent.bat config {{instance}} {{config_input_file_dest}}"
+    register: scon_out
+
+  # silent config script RC is always 0, check the stdout to determine the result
+  - fail: msg="check silent config standard output"
+    when: scon_out.stdout.find('Configuration completed successfully') == -1
+  
+  - name: Start the "{{agent_name}}" agent
+    win_command: "{{install_dir}}\\bin\\{{agent_name}}-agent.bat start {{instance}}"
