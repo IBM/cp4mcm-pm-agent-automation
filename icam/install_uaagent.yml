@@ -1,0 +1,351 @@
+---
+- name: play1 for filemanager
+  hosts: all
+  gather_facts: no
+  vars_files:
+    - vars/uavars.yml
+
+  tasks:
+  - set_fact:
+      image_type: copy
+    when: image_type is not defined
+
+  # extra variable can't be changed in yml file. use final_xxx instead
+  - set_fact:
+      final_silent_type: copy
+    when: silent_type is not defined or silent_type == "local"
+  
+  - set_fact:
+      final_silent_type: "{{silent_type}}"
+    when: silent_type is defined and silent_type != "local"
+
+
+  - fail:
+      msg: invalid image_type -- "{{image_type}}"
+    when: (image_type|lower) != "copy" and (image_type|lower) != "download"
+
+  - fail:
+      msg: invalid silent_type -- "{{silent_type}}"
+    when: (final_silent_type|lower) != "copy" and (final_silent_type|lower) != "download"
+
+  - fail:
+      msg: agent_image is not defined!
+    when: agent_image is not defined
+
+  - set_fact:
+      final_cp_type: copy
+    when: cp_type is not defined or (cp_type|lower) == "copy"
+
+  - set_fact:
+      final_cp_type: auto
+    when: cp_type is defined and (cp_type|lower) == "auto"
+
+  - set_fact:
+      final_cp_type: download
+    when: cp_type is defined and (cp_type|lower) == "download"
+
+  - fail:
+      msg: "invalid cp_type: {{cp_type}}"
+    when: final_cp_type is not defined  
+
+  - fail:
+      msg: Please specify configpack path with "cp_file".
+    when: (final_cp_type == "copy" or final_cp_type == "download") and cp_file is not defined
+
+  - add_host:
+      hostname: "{{ groups['all'][0] }}"
+      final_cp_type: "{{final_cp_type}}"
+
+  - block:
+      - set_fact:
+          remove_tmpdir: no
+      - name: remove existing dest_dir
+        file:
+          path: "{{dest_dir}}"
+          state: absent
+      - name: Make dest_dir "{{ dest_dir }}"
+        file:
+          path: "{{ dest_dir }}"
+          state: directory
+          mode: 0777
+          recurse: yes
+      - set_fact:
+          final_dest_dir: "{{dest_dir}}"
+    when: dest_dir is defined and (image_type|lower) != "local"
+
+  - block:
+      - set_fact:
+          remove_tmpdir: yes
+        when: remove_tmpdir is not defined
+      - name: create temp dest_dir
+        tempfile:
+          state: directory
+          prefix: "ua_ansible"
+        register: temp_dir
+      - stat:
+          path: "{{temp_dir.path}}"
+        register: check_tempdir
+      - fail:
+          msg: "Can't create temp dir {{temp_dir.path}}"
+        when: check_tempdir.stat.exists == False
+      - set_fact:
+          final_dest_dir: "{{temp_dir.path}}"
+    when: dest_dir is not defined and (image_type|lower) != "local"
+
+  - set_fact:
+      final_dest_dir: "{{ agent_image | dirname }}"
+    when: (image_type|lower) == "local"
+
+  - debug:
+      msg: "final_dest_dir is {{final_dest_dir}}"
+
+  - set_fact:
+    # have to set target_dir here to overwride the one in commonvars.yml, which will be taken in filemanager.yml
+      target_dir: "{{final_dest_dir}}"
+    # set variables here to transfer them to file_manager.yml
+      image_type: "{{image_type}}"
+      agent_image: "{{agent_image}}"
+  - set_fact:
+      silent_file: "{{silent_file}}"
+      #final_silent_type: "{{final_silent_type}}"
+    when: silent_file is defined
+  - set_fact:
+      #final_cp_type: "{{final_cp_type}}"
+      cp_file: "{{cp_file}}"
+    when: final_cp_type == "download" or final_cp_type == "copy"
+
+- import_playbook: filemanager.yml
+  vars:
+    # we can't use vars_files here so it can't pass "{{xxxx}}" with import_playbook. Have to set_fact in advance.
+    src_type: "{{image_type}}"
+    src_image: "{{agent_image}}"
+    untar: yes
+    del_dir: no
+
+- import_playbook: filemanager.yml
+  vars:
+    src_type: "{{final_silent_type}}"
+    src_image: "{{silent_file}}"
+    untar: no
+    del_dir: no
+  when: silent_file is defined
+
+- import_playbook: filemanager.yml
+  vars:
+    src_type: "{{final_cp_type}}"
+    src_image: "{{cp_file}}"
+    untar: no
+    del_dir: no
+  when: final_cp_type != "auto"
+
+#--------------------------------------------------------------
+# play2 only run on ansible tower machine
+- name: Get config pack url
+  hosts: localhost
+  gather_facts: no
+  vars:
+    configpack_name: ibm-cloud-apm-dc-configpack
+    configpack_mode: cnapmdc
+  tasks:
+  - set_fact:
+      final_cp_type: "{{hostvars[groups['all'][0]].final_cp_type}}"
+
+  - include_tasks: get_cpurl_tasks.yml
+    when: final_cp_type is defined and final_cp_type == "auto"
+
+#--------------------------------------------------------------
+
+- name: play3 install on each host
+  hosts: all
+  gather_facts: yes
+  vars:
+    configpack_file: ibm-cloud-apm-dc-configpack.tar
+    #ua_last_folder: .
+    configpack_name: ibm-cloud-apm-dc-configpack
+    #ua_package_file: ua-traditional-monitoring
+    ua_silent_file: APPMGTUA_silent_install.txt
+    ua_install_shell: installUA.sh
+  vars_files:
+    - vars/uavars.yml
+
+  tasks:
+  - name: Download {{ configpack_file }}
+    get_url:
+      url: "{{ hostvars[groups['all'][0]].configpack_url }}"
+      dest: "{{final_dest_dir}}/{{ configpack_file }}"
+      validate_certs: false
+      timeout: 90
+    when: final_cp_type == "auto"
+
+  # - name: copy exists config pack
+  #   copy:
+  #     src: "{{cp_path}}/{{configpack_file}}"
+  #     dest: "{{final_dest_dir}}"
+  #     remote_src: yes
+  #   when: final_cp_type == "copy"
+
+  - name: extract to verify configpack
+    unarchive:
+      src: "{{final_dest_dir}}/{{configpack_file}}"
+      dest: "{{final_dest_dir}}"
+      remote_src: yes
+
+  - name: check config pack is downloaded successfully
+    stat:
+      path: "{{final_dest_dir}}/{{ configpack_name }}/global.environment"
+    register: check_configpk
+
+  - fail:
+      msg: "Failed to download / copy config pack to {{final_dest_dir}}/{{ configpack_file }}"
+    when: check_configpk.stat.exists == False
+
+  # determine architecture
+  - set_fact:
+      package_arch: xlinux
+    when: ansible_system == "Linux" and ansible_architecture == "x86_64"
+
+#  - set_fact:
+#      package_arch: zlinux
+#    when: ansible_system == "Linux" and ansible_architecture is search("s390")
+
+  - set_fact:
+      package_arch: plinuxle
+    when: ansible_system == "Linux" and ansible_architecture == "ppc64le"
+
+#  - set_fact:
+#      package_arch: aix
+#    when: ansible_system == "AIX"
+
+  - debug:
+      msg: "package_arch is {{package_arch}}"
+
+  - fail:
+      msg: "This is not a supported platform: {{ansible_system}} , {{ansible_architecture}}"
+    when: package_arch is not defined or package_arch == ""
+
+  - name: find the sub directory
+    shell: find ./ -name "*{{package_arch}}*"
+    args:
+      chdir: "{{final_dest_dir}}"
+    register: sub_tar
+
+  - debug:
+      msg: "sub_tar={{sub_tar.stdout}}"
+
+  - fail:
+      msg: "Failed to find tar.gz file for {{package_arch}}."
+    when: sub_tar.stdout == ""
+
+#  - set_fact:
+#      ua_last_folder: "{{ua_package_file}}-{{package_arch}}"
+
+  - name: extract 2nd level ua package
+    unarchive:
+      src: "{{ final_dest_dir }}/{{sub_tar.stdout}}"
+      dest: "{{final_dest_dir}}"
+      remote_src: yes
+
+#  - stat:
+#      path: "{{final_dest_dir}}/{{ua_last_folder}}/{{ua_install_shell}}"
+#    register: check_untar
+
+   
+#  - fail:
+#      msg: "failed to extract {{ua_package_file}}"
+#    when: check_untar.stat.exists == False
+
+  - name: find the install script path
+    shell: find ./ -name "{{ua_install_shell}}"
+    args:
+      chdir: "{{final_dest_dir}}"
+    register: shell_subpath
+
+  - debug: 
+      msg: "shell_subpath={{shell_subpath.stdout}}"
+  - fail:
+      msg: "Failed to find {{ua_install_shell}}"
+    when: shell_subpath.stdout == ""
+
+  - set_fact:
+      sub_dir: "{{shell_subpath.stdout|dirname}}"
+
+
+  - name: use default silent file
+    set_fact:
+      final_silent_file: "{{final_dest_dir}}/{{sub_dir}}/{{ua_silent_file}}"
+    when: silent_file is not defined
+
+  - name: use customized silent file
+    set_fact:
+      final_silent_file: "{{final_dest_dir}}/{{silent_file|basename}}"
+    when: silent_file is defined   
+
+  - debug:
+      msg: final_silent_file is {{final_silent_file}}
+
+  - stat:
+      path: "{{final_silent_file}}"
+    register: check_silent_file
+
+  - fail:
+      msg: Can't find silent response file "{{final_silent_file}}"
+    when: check_silent_file.stat.exists == False
+
+
+  - name: update component in silent file
+    lineinfile: 
+      path: "{{final_silent_file}}"
+      regexp: '^#INSTALL_AGENT=all'
+      line: "INSTALL_AGENT=all"
+    when: silent_file is not defined
+
+  - name: update agent home in silent file
+    lineinfile:    
+      path: "{{final_silent_file}}"   
+      regexp: '^AGENT_HOME='   
+      line: "AGENT_HOME={{ agent_home }}"  
+    when:  agent_home is defined
+
+  - block:
+    - name: get agent home from silent file
+      shell: grep ^AGENT_HOME= {{final_silent_file}} 2>/dev/null | head -1 | cut -f 2 -d '='
+      #args:
+      #  chdir: "{{final_dest_dir}}/{{ua_last_folder}}"
+      register: agent_home_default
+    - set_fact:
+        agent_home: "{{agent_home_default.stdout}}"
+    when: agent_home is not defined
+
+  - fail:
+      msg: Can't get agent home
+    when: agent_home == ""
+
+  - name: goto installer dir and run installUA.sh
+    shell: ./installUA.sh -p {{ final_silent_file|quote }}
+    args:
+      chdir: "{{final_dest_dir}}/{{sub_dir}}"
+
+  - name: config ICAM server
+    shell: ./setup-icam.sh {{final_dest_dir|quote}}/{{configpack_file|quote}}
+    args:
+      chdir: "{{agent_home}}/bin"
+
+  - name: start agent
+    shell: "( ./start-agent.sh )"
+    args:
+      chdir: "{{agent_home}}/bin"
+    async: 10
+    poll: 0
+    when: agent_home != ""
+
+  # this will run only when all tasks succeed. And only true for tmp dir
+  - name: remove temp work dir 
+    file:
+      path: "{{final_dest_dir}}"
+      state: absent
+    when: dest_dir is not defined and (remove_tmpdir is not defined or (remove_tmpdir|bool) )
+      
+
+
+
+

@@ -14,16 +14,19 @@
       path:  "{{ install_dir }}"
     register: itmdir
 
-  - name: ending the play if icam dir does not exist
-    meta: end_play
-    when:
-      - itmdir.stat.exists == false
+#  - name: ending the play if icam dir does not exist
+#    fail: msg="There is nothing to uninstall."
+#    when:
+#      - itmdir.stat.exists == false
 
-  - block:
+  - name: "Uninstall all agents from {{install_dir}}"
+    shell: "echo y | {{install_dir}}/bin/smai-agent.sh uninstall_all"
+    when: itmdir.stat.exists == true and ((agent_name | lower) == "all" or (agent_name | lower) == "smai")
 
-    - name: "Uninstall ITM from {{install_dir}}"
-      shell: "echo y | {{install_dir}}/bin/smai-agent.sh uninstall_all"
-      ignore_errors: yes
+  - name: "Uninstall {{agent_name}} agents from {{install_dir}}"
+    shell: "echo y | {{install_dir}}/bin/{{item}}-agent.sh uninstall"
+    loop: "{{agent_name.split(',')}}"
+    when: itmdir.stat.exists == true and (agent_name | lower) != "all" and (agent_name | lower) != "smai"
 
   - name: "Delete the dir: {{install_dir}}"
     file:
@@ -31,5 +34,6 @@
       state: absent
       force: yes
     ignore_errors: yes
+    when: itmdir.stat.exists == true and remove_dir is defined and (remove_dir | lower) == "true"
 
 

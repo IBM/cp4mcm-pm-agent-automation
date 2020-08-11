@@ -2,11 +2,11 @@
 # common 
 
   hub_dir: "{{ playbook_dir }}"
-  tmp_dir: /tmp
-  def_dir: /opt/ibm/apm/agent
+  tmp_dir: c:\tmp
+  def_dir: c:\IBM\APM
   install_dir: "{{ agent_home | default(def_dir) }}"
-  default_dir: /tmp
-  default_image: "{{default_dir}}/icam"
+  default_dir: c:\tmp
+  default_image: "{{default_dir}}\\icam"
   target_dir: "{{ dest_dir | default (default_image)}}"
 
   script_dir: "{{ playbook_dir }}/roles/common/scripts"
@@ -24,18 +24,18 @@
   value_install: Install
   inst_type: "{{ install_type | default(value_install) }}"
 
-  default_silent_file: "{{config_dir}}/silent_install_icamagent_os.txt"
+  default_silent_file: "{{config_dir}}\\silent_install_icamagent_os.txt"
   inst_silent_file: "{{ silent_file | default(default_silent_file) }}"
 
   product_code: os
-  default_config_file: "{{config_dir}}/silent_config_{{  product_code }}.txt"
+  default_config_file: "{{config_dir}}\\silent_config_{{ product_code }}.txt"
   inst_config_file: "{{ config_file | default(default_config_file) }}"
 
   install_input_file_src: "{{ inst_silent_file }}"
-  config_input_file_src: "{{  inst_config_file }}"
+  config_input_file_src: "{{ inst_config_file }}"
 
-  install_input_file_dest: "{{ target_dir }}/{{ silent_file | basename }}"
-  config_input_file_dest: "{{ target_dir  }}/{{ config_file | basename }}"
+#  install_input_file_dest: "{{ target_dir }}\\{{ silent_file | win_basename }}"
+#  config_input_file_dest: "{{ target_dir }}\\{{ config_file | win_basename }}"
 
   snapshot: ITM_install_snapshot
   default_fyre: false
@@ -61,6 +61,6 @@
   use_local_media: False
 
 # file for uninstall-all
-  itmremovescript: "itmremoveall.sh"
+  itmremovescript: "smai-agent.bat"
 
 

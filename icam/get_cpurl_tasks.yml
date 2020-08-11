@@ -1,0 +1,41 @@
+  - set_fact:
+      icam_namespace: management-monitoring
+    when: icam_namespace is not defined
+
+  - set_fact:
+      account_id: id-mycluster-account
+    when: account_id is not defined
+  
+  - name: Install openshift module
+    command: pip install --upgrade --user openshift
+    delegate_to: localhost
+
+  - name: Install google.auth module
+    command: pip install --upgrade --user google.auth
+    delegate_to: localhost
+    ignore_errors: yes
+
+  - name: Get agentbootstrap service objects
+    k8s_info:
+      api_version: v1
+      kind: Service
+      label_selectors:
+        - app = agentbootstrap
+      namespace: "{{ icam_namespace }}"
+    register: agentbootstrap_service
+    delegate_to: localhost  
+
+  - name: Get access token of {{ configpack_name }}
+    uri:
+      url: http://{{ agentbootstrap_service.resources[0].metadata.name }}.{{ icam_namespace }}:6001/agent_bootstrap/0.2/api/downloadArtifact/{{ account_id }}/{{ configpack_mode }}/{{ configpack_name }}
+      return_content: yes
+    register: configpack_url_r
+    delegate_to: localhost
+
+  - add_host:
+#      hostname: "{{ hostvars[groups['all'][0]].inventory_hostname }}"
+      hostname: "{{ groups['all'][0] }}"
+      configpack_url: "{{configpack_url_r.content}}"
+
+  - debug:
+      msg: "save to hostname: {{ groups['all'][0] }}"      

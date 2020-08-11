@@ -13,7 +13,7 @@
       when: target_dir is not defined
     
     - set_fact:
-        icam_namespace: kube-system
+        icam_namespace: management-monitoring
       when: icam_namespace is not defined
     
     - set_fact:
@@ -29,9 +29,9 @@
       when: configpack_type == 'apmv8'
     
     - set_fact:
-        configpack_name: ibm-cloud-icam-agents-configpack
+        configpack_name: ibm-cloud-apm-agents-configpack
         configpack_mode: cnapmagents
-        configpack_file: ibm-cloud-icam-agents-configpack.tar
+        configpack_file: ibm-cloud-apm-agents-configpack.tar
       when: configpack_type == 'icamagent'
     
     - set_fact:
@@ -44,13 +44,18 @@
       command: pip install --upgrade --user openshift
       delegate_to: localhost
 
+    - name: Install google.auth module
+      command: pip install --upgrade --user google.auth
+      delegate_to: localhost
+      ignore_errors: yes
+
     - name: Get agentbootstrap service objects
       k8s_info:
         api_version: v1
         kind: Service
         label_selectors:
           - app = agentbootstrap
-        namespace: kube-system
+        namespace: "{{ icam_namespace }}"
       register: agentbootstrap_service
       delegate_to: localhost
 

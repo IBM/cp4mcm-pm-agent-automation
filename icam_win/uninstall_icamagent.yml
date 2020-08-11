@@ -1,0 +1,48 @@
+---
+- name: Uninstall icam agents 
+  hosts: all
+  vars_files:
+    - vars/commonvars.yml
+    - vars/icamvars.yml
+ 
+  tasks:
+ 
+# tasks file for uninstall-all
+
+  - fail: msg="agent_name must be defined"
+    when: agent_name is undefined
+
+  - name:  Test if "{{ install_dir }}" directory exists on Windows
+    win_stat:
+      path:  "{{ install_dir }}"
+    register: itmdir
+
+#  - name: ending the play if icam dir does not exist
+#    meta: end_play
+#    when:
+#      - itmdir.stat.exists == false
+
+  - name: "Uninstall all agents from {{install_dir}} on Windows"
+    win_command: "{{install_dir}}\\bin\\smai-agent.bat uninstall_all"
+    args:
+      stdin: y 
+#    ignore_errors: yes
+    when: itmdir.stat.exists == true and ((agent_name | lower) == "all" or (agent_name | lower) == "smai")
+
+  - name: "Uninstall {{agent_name}} agent from {{install_dir}} on Windows"
+    win_command: "{{install_dir}}\\bin\\{{item}}-agent.bat uninstall"
+    args:
+      stdin: y 
+    loop: "{{agent_name.split(',')}}"
+#    ignore_errors: yes
+    when: itmdir.stat.exists == true and (agent_name | lower) != "all" and (agent_name | lower) != "smai"
+
+# the uninstall script already removed the installation folder, no need to run this task
+#  - name: "Delete the dir: {{install_dir}}"
+#    win_file:
+#      path: "{{install_dir}}"
+#     state: absent
+#      force: yes
+#    ignore_errors: yes
+
+

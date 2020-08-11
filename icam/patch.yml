@@ -13,6 +13,6 @@
     - vars/icamvars.yml
 
   tasks:
-  - name: silent install of agent-- "cd {{default_image}}/8.1.4* ;  ./apmpatch.sh -noninteractive {{install_dir}}  "
-    shell: "cd {{default_image}}/8.1.4* ;  ./apmpatch.sh -noninteractive {{install_dir}}"
+  - name: silent install of agent-- "cd {{target_dir}}/8.1.4* ;  ./apmpatch.sh -noninteractive {{install_dir}}  "
+    shell: "cd {{target_dir}}/8.1.4* ;  ./apmpatch.sh -noninteractive {{install_dir}}"
 

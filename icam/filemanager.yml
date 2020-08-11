@@ -6,6 +6,10 @@
     - vars/icamvars.yml
  
   tasks:
+
+  - name: Set variable 
+    set_fact:
+      dest_image: "{{target_dir}}"
  
   - name: Set variable type 
     set_fact:
@@ -57,12 +61,16 @@
     when:
       (src_type|lower) == "local"
 
+  - set_fact:
+      install_input_file_dest: "{{dest_image}}/{{imagefile}}"
+      config_input_file_dest: "{{dest_image}}/{{imagefile}}"
+
 # ----------- Extract the file ------------------------------------------
 
   - name: "Extract directory: {{untar}}"
     unarchive:
       src: "{{dest_image}}/{{imagefile}}"
-      dest: "{{default_image}}/"
+      dest: "{{target_dir}}/"
       remote_src: yes
     when: untar is defined and (untar|lower) == "true"
 

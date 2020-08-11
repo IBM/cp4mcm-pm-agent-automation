@@ -1,0 +1,86 @@
+---
+- name: Copy and extract configured agent image
+  hosts: all
+  vars_files:
+    - vars/commonvars.yml
+    - vars/icamvars.yml
+ 
+  tasks:
+  - name: Set variable 
+    set_fact:
+      dest_image: "{{target_dir}}"
+ 
+  - name: Set variable type 
+    set_fact:
+      src_type: local 
+    when: src_type is not defined
+
+  - name: delete the directory "{{dest_image}} on Windows"
+    win_file:
+      path: "{{dest_image}}"
+      state: absent
+    when: 
+      - del_dir is defined and (del_dir|lower) == "true" and (src_type|lower) != "local"
+
+  - name: Make remote dir "{{ dest_image }} on Windows"
+    win_file:
+      path: "{{ dest_image }}"
+      state: directory
+    ignore_errors: yes
+
+# ------------------- Copy file to end point system ----------------------------------
+
+  - set_fact:
+      imagefile: "{{ src_image | win_basename }}"
+
+  - name: "Copy the file {{imagefile}} from {{ src_image }} to end point {{ dest_image }} on Windows"
+    win_copy:
+      src: "{{ src_image }}"
+      dest: "{{ dest_image }}\\{{imagefile}}"
+      force: yes
+      remote_src: yes
+    when:
+      - (src_type|lower) == "copy"
+
+# Downloading it from external URL
+  - name: Download the file and copy it on Windows
+    win_get_url:
+      url: "{{ src_image}}"
+      dest: "{{ dest_image }}"
+      force: yes
+    when:
+      - (src_type|lower) == "download"
+
+# Just setting the dest_image as we are using a local copy
+  - set_fact:
+      dest_image: "{{ src_image | win_dirname }}"
+    when:
+      (src_type|lower) == "local"
+      
+  - set_fact:
+      install_input_file_dest: "{{dest_image}}/{{imagefile}}"
+      config_input_file_dest: "{{dest_image}}/{{imagefile}}"
+
+
+# ----------- Extract the file ------------------------------------------
+#     src: C:\liyane\images\appMgtAgents.zip
+#src: "{{dest_image}}\\{{imagefile}}"
+  - name: "Extract directory on Windows: {{untar}}"
+    win_unzip:
+      src: "{{dest_image}}\\{{imagefile}}"
+      dest: "{{default_image}}"
+    when: 
+      - untar is defined and (untar|lower) == "true"
+
+# ----------------- Run the script ----------------------------------------
+# tasks to run remote script
+  - set_fact: 
+      args_script: " "
+    when:
+      - args_script is not defined
+
+  - name: Running the script on Windows "{{ dest_image }}\\{{imagefile}}" "{{args_script}}"
+    win_command: "{{ dest_image }}\\{{imagefile}} {{args_script}}"
+    when: 
+      - run is defined and (run|lower) == "true"
+

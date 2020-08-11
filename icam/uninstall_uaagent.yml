@@ -1,0 +1,46 @@
+---
+- name: Uninstall UA
+  hosts: all
+  gather_facts: no
+  vars_files: 
+    - vars/uavars.yml
+
+  tasks:
+  - fail:
+      msg: "Please specify UA install path with agent_home"
+    when: agent_home is not defined or agent_home == ""
+
+  - name: verify agent home
+    stat:
+      path: "{{agent_home}}/bin/unified-agent"
+    register: check_ua
+
+  - fail:
+      msg: "The given path {{agent_home}} is not a valid UA installation."
+    when: check_ua.stat.exists == False
+
+  - name: run rmsvc
+    shell: ./rmsvc.sh
+    args:
+      chdir: "{{agent_home}}/bin"
+
+  - name: run Uninstall
+    shell: ./uninstall.sh -s
+    args:
+      chdir: "{{agent_home}}/bin"
+
+  # - set_fact:
+  #     removedir: "{{remove_uadir|bool}}"
+  #   when: remove_uadir is defined
+
+  # - set_fact:
+  #     removedir: False
+  #   when: remove_uadir is not defined
+
+  - name: remove UA dir
+    file: 
+      path: "{{agent_home}}"
+      state: absent
+    when: remove_uadir is not defined or (remove_uadir|bool)
+
+
